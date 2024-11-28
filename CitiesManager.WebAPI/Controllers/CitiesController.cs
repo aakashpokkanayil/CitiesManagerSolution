@@ -48,20 +48,33 @@ namespace CitiesManager.WebAPI.Controllers
         // PUT: api/Cities/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCity(Guid id, City city)
+        public async Task<IActionResult> PutCity(Guid id,[Bind(nameof(City.CityId),nameof(City.CityName))] City city)
         {
+            // [Bind(nameof(City.CityId),nameof(City.CityName))]
+            // this is to protect from overposting attacks
+            // by mentioning this only CityId,CityName will be accept from body
+            // no other model prop from City will accept from body.
+            // so this avoid unwanted posting from body.
             if (id != city.CityId)
             {
                 return BadRequest();
             }
-
-            _context.Entry(city).State = EntityState.Modified;
+            var existingCity = await _context.Cities.FindAsync(id);
+            if (existingCity == null)
+            {
+                return NotFound();
+            }
+            existingCity.CityName = city.CityName;
 
             try
             {
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
+            // while saveing changes if some one parallely make changes in cities in db
+            // it will catch this exception
+            // so when saving changes if id dont exists then return NotFound();
+            // else throw 500 error.
             {
                 if (!CityExists(id))
                 {
@@ -79,7 +92,7 @@ namespace CitiesManager.WebAPI.Controllers
         // POST: api/Cities
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<City>> PostCity(City city)
+        public async Task<ActionResult<City>> PostCity([Bind(nameof(City.CityId), nameof(City.CityName))] City city)
         {
           if (_context.Cities == null)
           {
@@ -89,6 +102,7 @@ namespace CitiesManager.WebAPI.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetCity", new { id = city.CityId }, city);
+            // this will create a location header in response, which contain url to GetCity action.
         }
 
         // DELETE: api/Cities/5
@@ -108,7 +122,7 @@ namespace CitiesManager.WebAPI.Controllers
             _context.Cities.Remove(city);
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return NoContent(); // statuscode 200
         }
 
         private bool CityExists(Guid id)
